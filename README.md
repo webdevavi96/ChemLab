@@ -157,3 +157,7 @@ To build the signed release Android App Bundle (AAB):
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
 
+## Download official app
+
+[Download](https://github.com/webdevavi96/ChemLab/releases/tag/v1.0.0)
+
