@@ -357,6 +357,10 @@ object ParticleEffects {
 
     /**
      * Draws realistic thermal stress fracture crack patterns across the glassware walls.
+    /**
+     * Draws thermal glass fracture lines across the beaker body.
+     * Level 1 (150-300°C): Hairline spider cracks.
+     * Level 2 (300-500°C): Increased, dense branching fracture network.
      */
     fun drawThermalCracks(
         drawScope: DrawScope,
@@ -364,7 +368,8 @@ object ParticleEffects {
         rightX: Float,
         topY: Float,
         bottomY: Float,
-        phase: Float
+        phase: Float,
+        crackLevel: Int = 1
     ) {
         drawScope.apply {
             val width = rightX - leftX
@@ -372,7 +377,7 @@ object ParticleEffects {
             val cx = leftX + width / 2f
             val cy = topY + height / 2f
 
-            // Main vertical stress crack
+            // Level 1: Primary vertical & diagonal stress fractures
             val crackPath1 = Path().apply {
                 moveTo(cx - 15f, bottomY - 6f)
                 lineTo(cx - 8f, cy + height * 0.25f)
@@ -381,7 +386,6 @@ object ParticleEffects {
                 lineTo(cx + 18f, topY + 12f)
             }
 
-            // Branching diagonal fracture lines
             val crackPath2 = Path().apply {
                 moveTo(cx + 12f, cy)
                 lineTo(rightX - 10f, cy - 25f)
@@ -394,21 +398,162 @@ object ParticleEffects {
                 lineTo(leftX + 4f, cy + height * 0.42f)
             }
 
-            val crackGlowColor = Color(0xFFE2E8F0)
-            val crackInnerColor = Color(0xFF0F172A)
+            val paths = mutableListOf(crackPath1, crackPath2, crackPath3)
 
-            listOf(crackPath1, crackPath2, crackPath3).forEach { path ->
+            // Level 2 (350-500°C): Increased extensive spiderweb fracture network
+            if (crackLevel >= 2) {
+                val crackPath4 = Path().apply {
+                    moveTo(leftX + 8f, bottomY - 12f)
+                    lineTo(cx - 20f, cy + height * 0.15f)
+                    lineTo(cx - 5f, cy - height * 0.1f)
+                    lineTo(cx - 25f, topY + 20f)
+                }
+                val crackPath5 = Path().apply {
+                    moveTo(rightX - 8f, bottomY - 14f)
+                    lineTo(cx + 25f, cy + height * 0.2f)
+                    lineTo(cx + 15f, cy - height * 0.05f)
+                    lineTo(rightX - 12f, topY + 30f)
+                }
+                val crackPath6 = Path().apply {
+                    moveTo(cx, bottomY - 4f)
+                    lineTo(cx - 30f, bottomY - 24f)
+                    lineTo(cx + 30f, bottomY - 36f)
+                }
+                paths.addAll(listOf(crackPath4, crackPath5, crackPath6))
+            }
+
+            val crackGlowColor = if (crackLevel >= 2) Color(0xFFFCA5A5) else Color(0xFFE2E8F0)
+            val crackInnerColor = if (crackLevel >= 2) Color(0xFF7F1D1D) else Color(0xFF0F172A)
+
+            paths.forEach { path ->
                 // Outer glass crack highlight reflection
                 drawPath(
                     path = path,
                     color = crackGlowColor.copy(alpha = 0.95f),
-                    style = Stroke(width = 2.5f, cap = StrokeCap.Round)
+                    style = Stroke(width = if (crackLevel >= 2) 3.0f else 2.2f, cap = StrokeCap.Round)
                 )
                 // Inner dark crack fracture line
                 drawPath(
                     path = path,
                     color = crackInnerColor,
                     style = Stroke(width = 1.0f, cap = StrokeCap.Round)
+                )
+            }
+        }
+    }
+
+    /**
+     * Draws glowing red-hot incandescent heat glow at the bottom of the glass (350°C - 500°C).
+     */
+    fun drawRedHotBottom(
+        drawScope: DrawScope,
+        leftX: Float,
+        rightX: Float,
+        bottomY: Float,
+        height: Float,
+        cornerRadius: Float,
+        phase: Float
+    ) {
+        drawScope.apply {
+            val width = rightX - leftX
+            val glowHeight = height * 0.35f
+            val glowTop = bottomY - glowHeight
+
+            val glowPath = Path().apply {
+                moveTo(leftX + 2f, glowTop)
+                lineTo(rightX - 2f, glowTop)
+                lineTo(rightX - 2f, bottomY - cornerRadius)
+                quadraticTo(rightX - 2f, bottomY, rightX - cornerRadius, bottomY)
+                lineTo(leftX + cornerRadius, bottomY)
+                quadraticTo(leftX + 2f, bottomY, leftX + 2f, bottomY - cornerRadius)
+                close()
+            }
+
+            val pulseAlpha = (0.75f + 0.15f * sin(phase * 4f)).coerceIn(0.6f, 0.95f)
+
+            // Red-hot incandescent gradient
+            drawPath(
+                path = glowPath,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0x00EF4444),
+                        Color(0x77EF4444).copy(alpha = pulseAlpha * 0.6f),
+                        Color(0xFFDC2626).copy(alpha = pulseAlpha * 0.9f),
+                        Color(0xFFFF0000).copy(alpha = pulseAlpha)
+                    ),
+                    startY = glowTop,
+                    endY = bottomY
+                )
+            )
+
+            // Intense glowing base rim line
+            drawLine(
+                color = Color(0xFFFF4444).copy(alpha = pulseAlpha),
+                start = Offset(leftX + cornerRadius, bottomY - 1f),
+                end = Offset(rightX - cornerRadius, bottomY - 1f),
+                strokeWidth = 4f,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+
+    /**
+     * Draws sagging, deformed molten glass with glowing red-orange softened shards (550°C - 750°C).
+     */
+    fun drawMoltenGlassware(
+        drawScope: DrawScope,
+        leftX: Float,
+        rightX: Float,
+        bottomY: Float,
+        phase: Float,
+        liquidColor: Color
+    ) {
+        drawScope.apply {
+            val width = rightX - leftX
+            val cx = leftX + width / 2f
+
+            // 1. Spilled chemical puddle on workbench
+            drawOval(
+                color = liquidColor.copy(alpha = 0.75f),
+                topLeft = Offset(cx - width * 0.7f, bottomY - 6f),
+                size = Size(width * 1.4f, 22f)
+            )
+
+            // 2. Deformed, molten sagging glass puddle with glowing edges
+            val moltenPath = Path().apply {
+                moveTo(leftX - 10f, bottomY)
+                quadraticTo(leftX + width * 0.25f, bottomY - 24f + 3f * sin(phase * 2f), cx, bottomY - 16f)
+                quadraticTo(rightX - width * 0.25f, bottomY - 28f + 4f * cos(phase * 2f), rightX + 10f, bottomY)
+                close()
+            }
+
+            drawPath(
+                path = moltenPath,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFFEA580C).copy(alpha = 0.85f),
+                        Color(0xFFDC2626).copy(alpha = 0.95f),
+                        Color(0xFF7F1D1D)
+                    ),
+                    startY = bottomY - 28f,
+                    endY = bottomY
+                )
+            )
+
+            // 3. Broken molten glass lumps & chunks
+            for (i in 0..6) {
+                val gx = leftX + ((i * 31f) % (width + 20f)) - 10f
+                val gy = bottomY - 8f - (i % 3) * 6f
+                val gr = 8f + (i % 4) * 3f
+                drawCircle(
+                    color = Color(0xFFF97316).copy(alpha = 0.9f),
+                    radius = gr,
+                    center = Offset(gx, gy)
+                )
+                drawCircle(
+                    color = Color(0xFFFEF08A),
+                    radius = gr * 0.4f,
+                    center = Offset(gx, gy)
                 )
             }
         }

@@ -23,3 +23,7 @@ local.properties
 .env
 .env.*
 .env/*
+
+local.properties
+.kotlin
+

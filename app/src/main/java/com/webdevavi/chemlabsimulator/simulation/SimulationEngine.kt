@@ -27,20 +27,58 @@ object SimulationEngine {
                 heatSourceWatts = container.heatSourceWatts,
                 dtSeconds = dtSeconds
             )
-            val isCrackedNow = container.isCracked || thermal.newTemperatureCelsius >= 180.0
+            val currentTemp = thermal.newTemperatureCelsius
+
+            // Evaluate Glass Physical State according to temperature thresholds:
+            // 1. T <= 100°C: Normal intact glass (will NOT crack or explode)
+            // 2. 150°C < T <= 300°C: Cracks in glass, glass becomes light red
+            // 3. 300°C < T <= 500°C: Cracks increased, bottom of glass will be red
+            // 4. 500°C < T <= 750°C: Glass melts or breaks into pieces
+            // 5. T > 750°C: Glass violently explodes
+            val isTempExploded = currentTemp > 750.0
+            val isTempMelted = currentTemp in 500.0..750.0
+            val isTempRedBottom = currentTemp in 300.0..500.0
+            val isTempLightRed = currentTemp in 150.0..300.0
+            val isTempSafe = currentTemp <= 100.0
+
+            val isExplodedNow = container.isExploded || isTempExploded
+            val isMeltedNow = (container.isMelted || isTempMelted) && !isExplodedNow
+            val isShatteredNow = container.isShattered || isExplodedNow || isMeltedNow
+
+            val crackLevelNow = when {
+                isShatteredNow -> 2
+                isTempRedBottom -> 2
+                isTempLightRed -> 1
+                isTempSafe -> 0
+                container.isCracked -> max(1, container.visualState.crackLevel)
+                else -> 0
+            }
+            val isCrackedNow = crackLevelNow > 0 || isShatteredNow
+            val isLightRedGlassNow = (isTempLightRed || isTempRedBottom || isTempMelted) && !isTempSafe
+            val isRedHotBottomNow = (isTempRedBottom || isTempMelted) && !isTempSafe
+
             val currentSmokeAlpha = max(0f, container.visualState.smokeScreenAlpha - (dtSeconds.toFloat() / 2.0f))
 
             val updated = container.copy(
                 temperatureCelsius = thermal.newTemperatureCelsius,
                 isCracked = isCrackedNow,
+                isMelted = isMeltedNow,
+                isExploded = isExplodedNow,
+                isShattered = isShatteredNow,
                 visualState = container.visualState.copy(
                     liquidLevel = 0f,
                     bubbleIntensity = 0f,
                     steamIntensity = 0f,
                     isBoiling = false,
-                    flameActive = container.heatSourceWatts > 0.1 && !container.isShattered,
+                    flameActive = container.heatSourceWatts > 0.1 && !isShatteredNow,
                     isCracked = isCrackedNow,
-                    thermalStress = if (isCrackedNow) 1.0f else ((thermal.newTemperatureCelsius - 100.0) / 80.0).toFloat().coerceIn(0f, 1f),
+                    crackLevel = crackLevelNow,
+                    isLightRedGlass = isLightRedGlassNow,
+                    isRedHotBottom = isRedHotBottomNow,
+                    isMelted = isMeltedNow,
+                    isExploded = isExplodedNow,
+                    isShattered = isShatteredNow,
+                    thermalStress = if (isShatteredNow) 1.0f else ((thermal.newTemperatureCelsius - 100.0) / 80.0).toFloat().coerceIn(0f, 1f),
                     smokeScreenAlpha = currentSmokeAlpha
                 )
             )
@@ -145,27 +183,52 @@ object SimulationEngine {
         val activeGasId = reactionResult.events.firstOrNull { it.gasFormedId != null }?.gasFormedId
             ?: activeSubstances.firstOrNull { it.phase == Phase.GAS || it.isGasVapor }?.chemicalId
 
-        // Blast / explosion detection & beaker shatter
+        // Evaluate Glass Physical State according to temperature thresholds:
+        // 1. T <= 100°C: Normal intact glass (will NOT crack or explode)
+        // 2. 150°C < T <= 300°C: Cracks in glass, glass becomes light red
+        // 3. 300°C < T <= 500°C: Cracks increased, bottom of glass will be red
+        // 4. 500°C < T <= 750°C: Glass melts or breaks into pieces
+        // 5. T > 750°C: Glass violently explodes
+        val isTempExploded = currentTemp > 750.0
+        val isTempMelted = currentTemp in 500.0..750.0
+        val isTempRedBottom = currentTemp in 300.0..500.0
+        val isTempLightRed = currentTemp in 150.0..300.0
+        val isTempSafe = currentTemp <= 100.0
+
         val blastEvent = reactionResult.events.firstOrNull { it.isBlast }
-        val isShatteredNow = container.isShattered || (blastEvent != null && blastEvent.blastIntensity >= 0.5f)
 
-        // Thermal cracking detection (extreme heat T >= 180°C or sudden thermal shock)
-        val isCrackedNow = container.isCracked || currentTemp >= 180.0 || (currentTemp - container.temperatureCelsius > 60.0)
+        val isExplodedNow = container.isExploded || isTempExploded || (blastEvent != null && currentTemp > 100.0 && blastEvent.blastIntensity >= 0.85f)
+        val isMeltedNow = (container.isMelted || isTempMelted) && !isExplodedNow
+        val isShatteredNow = container.isShattered || isExplodedNow || isMeltedNow
 
-        // 2-second screen smoke timer: smokeScreenAlpha is 1.0 on explosion, decays smoothly over 2 seconds (dt / 2.0)
-        val currentSmokeAlpha = if (blastEvent != null && blastEvent.isBlast) {
+        val crackLevelNow = when {
+            isShatteredNow -> 2
+            isTempRedBottom -> 2
+            isTempLightRed -> 1
+            isTempSafe -> 0
+            container.isCracked -> max(1, container.visualState.crackLevel)
+            else -> 0
+        }
+        val isCrackedNow = crackLevelNow > 0 || isShatteredNow
+        val isLightRedGlassNow = (isTempLightRed || isTempRedBottom || isTempMelted) && !isTempSafe
+        val isRedHotBottomNow = (isTempRedBottom || isTempMelted) && !isTempSafe
+
+        // Screen smoke timer: smokeScreenAlpha is 1.0 on explosion, decays smoothly over 2 seconds (dt / 2.0)
+        val currentSmokeAlpha = if (isExplodedNow || (blastEvent != null && blastEvent.isBlast && currentTemp > 100.0)) {
             1.0f
         } else {
             max(0f, container.visualState.smokeScreenAlpha - (dtSeconds.toFloat() / 2.0f))
         }
 
-        val newBlastIntensity = if (blastEvent != null) {
+        val newBlastIntensity = if (isExplodedNow) {
+            max(blastEvent?.blastIntensity ?: 0.95f, 0.90f)
+        } else if (blastEvent != null && currentTemp > 100.0) {
             blastEvent.blastIntensity
         } else {
             max(0f, container.visualState.blastIntensity - 0.35f * dtSeconds.toFloat())
         }
 
-        // If shattered from explosion, contents violently spill / vaporize
+        // If shattered from explosion/melting, contents violently spill / vaporize
         if (isShatteredNow) {
             activeSubstances.clear()
             totalVol = 0.0
@@ -221,7 +284,12 @@ object SimulationEngine {
             surfaceRippleIntensity = surfaceRipple,
             isShattered = isShatteredNow,
             isCracked = isCrackedNow,
-            thermalStress = if (isCrackedNow) 1.0f else ((currentTemp - 100.0) / 80.0).toFloat().coerceIn(0f, 1f),
+            crackLevel = crackLevelNow,
+            isLightRedGlass = isLightRedGlassNow,
+            isRedHotBottom = isRedHotBottomNow,
+            isMelted = isMeltedNow,
+            isExploded = isExplodedNow,
+            thermalStress = if (isShatteredNow) 1.0f else ((currentTemp - 100.0) / 80.0).toFloat().coerceIn(0f, 1f),
             smokeScreenAlpha = currentSmokeAlpha,
             isRadioactive = isRadioactiveNow,
             radioactivityIntensity = if (isRadioactiveNow) 1.0f else 0f,
@@ -249,6 +317,8 @@ object SimulationEngine {
             isOverflown = isOverflown,
             isShattered = isShatteredNow,
             isCracked = isCrackedNow,
+            isMelted = isMeltedNow,
+            isExploded = isExplodedNow,
             isRadioactive = isRadioactiveNow
         )
 

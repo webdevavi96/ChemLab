@@ -59,6 +59,12 @@ fun GlasswareCanvas(
         val visual = container.visualState
         val fillFraction = (container.totalVolumeMl / equipment.capacityMl).toFloat().coerceIn(0f, 1f)
         val formulaString = container.getFormulaDisplayString()
+        val isShattered = visual.isShattered || container.isShattered || visual.isExploded || container.isExploded
+        val isMelted = visual.isMelted || container.isMelted
+        val isCracked = visual.isCracked || container.isCracked
+        val crackLevel = visual.crackLevel
+        val isLightRedGlass = visual.isLightRedGlass
+        val isRedHotBottom = visual.isRedHotBottom
 
         when (equipment) {
             EquipmentType.BEAKER_100, EquipmentType.BEAKER_250, EquipmentType.BEAKER_500, EquipmentType.BEAKER_1000 -> {
@@ -78,8 +84,12 @@ fun GlasswareCanvas(
                     blastFlashColorHex = visual.blastFlashColorHex,
                     gasType = visual.gasType,
                     surfaceRippleIntensity = visual.surfaceRippleIntensity,
-                    isShattered = visual.isShattered || container.isShattered,
-                    isCracked = visual.isCracked || container.isCracked,
+                    isShattered = isShattered,
+                    isMelted = isMelted,
+                    isCracked = isCracked,
+                    crackLevel = crackLevel,
+                    isLightRedGlass = isLightRedGlass,
+                    isRedHotBottom = isRedHotBottom,
                     thermalStress = visual.thermalStress,
                     formulaString = formulaString,
                     capacityMl = equipment.capacityMl,
@@ -100,8 +110,12 @@ fun GlasswareCanvas(
                     steamIntensity = visual.steamIntensity,
                     blastIntensity = visual.blastIntensity,
                     gasType = visual.gasType,
-                    isShattered = visual.isShattered || container.isShattered,
-                    isCracked = visual.isCracked || container.isCracked,
+                    isShattered = isShattered,
+                    isMelted = isMelted,
+                    isCracked = isCracked,
+                    crackLevel = crackLevel,
+                    isLightRedGlass = isLightRedGlass,
+                    isRedHotBottom = isRedHotBottom,
                     formulaString = formulaString,
                     phase = phase,
                     isSelected = isSelected,
@@ -113,6 +127,25 @@ fun GlasswareCanvas(
                     width = width,
                     height = height,
                     fillFraction = fillFraction,
+                    liquidColor = Color(visual.liquidColorHex),
+                    precipitateColor = Color(visual.precipitateColorHex),
+                    precipitateHeight = visual.precipitateHeight,
+                    bubbleIntensity = visual.bubbleIntensity,
+                    steamIntensity = visual.steamIntensity,
+                    blastIntensity = visual.blastIntensity,
+                    gasType = visual.gasType,
+                    isShattered = isShattered,
+                    isMelted = isMelted,
+                    isCracked = isCracked,
+                    crackLevel = crackLevel,
+                    isLightRedGlass = isLightRedGlass,
+                    isRedHotBottom = isRedHotBottom,
+                    formulaString = formulaString,
+                    phase = phase,
+                    isSelected = isSelected,
+                    textMeasurer = textMeasurer
+                )
+            }
                     liquidColor = Color(visual.liquidColorHex),
                     precipitateColor = Color(visual.precipitateColorHex),
                     precipitateHeight = visual.precipitateHeight,

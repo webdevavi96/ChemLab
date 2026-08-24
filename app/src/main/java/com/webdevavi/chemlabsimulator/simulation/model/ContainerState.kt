@@ -19,8 +19,13 @@ data class VisualState(
     val isPouringStreamActive: Boolean = false,
     val pourStreamProgress: Float = 0f,
     val surfaceRippleIntensity: Float = 0f,
-    val isShattered: Boolean = false, // Beaker exploded into shards from blast
+    val isShattered: Boolean = false, // Beaker exploded into shards from blast or T > 750°C
     val isCracked: Boolean = false, // Beaker cracked from extreme temperature
+    val crackLevel: Int = 0, // 0 = none, 1 = hairline (150-300°C), 2 = severe (300-500°C)
+    val isLightRedGlass: Boolean = false, // 150-300°C: glass becomes light red
+    val isRedHotBottom: Boolean = false, // 300-500°C: bottom of glass is red
+    val isMelted: Boolean = false, // 550-750°C: glass melts or breaks into pieces
+    val isExploded: Boolean = false, // > 750°C: glass explodes
     val thermalStress: Float = 0f, // 0.0 to 1.0
     val smokeScreenAlpha: Float = 0f, // 0.0 to 1.0 full screen smoke overlay lasting 2 seconds
     val isRadioactive: Boolean = false,
@@ -50,10 +55,13 @@ data class ContainerState(
     val isOverflown: Boolean = false,
     val isShattered: Boolean = false,
     val isCracked: Boolean = false,
+    val isMelted: Boolean = false,
+    val isExploded: Boolean = false,
     val isRadioactive: Boolean = false
 ) {
     val maxCapacityMl: Double get() = equipmentType.capacityMl
     val fillPercentage: Float get() = (totalVolumeMl / maxCapacityMl).toFloat().coerceIn(0f, 1f)
+    val isDestroyed: Boolean get() = isShattered || isMelted || isExploded || visualState.isShattered || visualState.isMelted || visualState.isExploded || temperatureCelsius > 550.0
 
     fun getFormulaDisplayString(maxItems: Int = 4): String {
         val active = substances.filter { it.moles > 1e-6 }
