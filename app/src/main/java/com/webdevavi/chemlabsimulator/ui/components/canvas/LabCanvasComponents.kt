@@ -146,21 +146,6 @@ fun GlasswareCanvas(
                     textMeasurer = textMeasurer
                 )
             }
-                    liquidColor = Color(visual.liquidColorHex),
-                    precipitateColor = Color(visual.precipitateColorHex),
-                    precipitateHeight = visual.precipitateHeight,
-                    bubbleIntensity = visual.bubbleIntensity,
-                    steamIntensity = visual.steamIntensity,
-                    blastIntensity = visual.blastIntensity,
-                    gasType = visual.gasType,
-                    isShattered = visual.isShattered || container.isShattered,
-                    isCracked = visual.isCracked || container.isCracked,
-                    formulaString = formulaString,
-                    phase = phase,
-                    isSelected = isSelected,
-                    textMeasurer = textMeasurer
-                )
-            }
             EquipmentType.FLORENCE_FLASK_250, EquipmentType.FLORENCE_FLASK_500 -> {
                 drawFlorenceFlask(width, height, fillFraction, Color(visual.liquidColorHex), visual.bubbleIntensity, formulaString, isSelected, textMeasurer)
             }
@@ -257,7 +242,11 @@ private fun DrawScope.drawBeaker(
     gasType: String?,
     surfaceRippleIntensity: Float,
     isShattered: Boolean,
+    isMelted: Boolean = false,
     isCracked: Boolean,
+    crackLevel: Int = 0,
+    isLightRedGlass: Boolean = false,
+    isRedHotBottom: Boolean = false,
     thermalStress: Float,
     formulaString: String,
     capacityMl: Double,
@@ -275,7 +264,6 @@ private fun DrawScope.drawBeaker(
     val cornerRadius = 18f
     val cx = leftX + beakerWidth / 2f
 
-    // 1. Draw Chemical Blast Shockwave Animation
     if (blastIntensity > 0.02f) {
         ParticleEffects.drawBlastShockwave(
             drawScope = this,
@@ -287,7 +275,18 @@ private fun DrawScope.drawBeaker(
         )
     }
 
-    // If shattered from explosion, draw broken glass shards & puddle instead of normal beaker!
+    if (isMelted) {
+        ParticleEffects.drawMoltenGlassware(
+            drawScope = this,
+            leftX = leftX,
+            rightX = rightX,
+            bottomY = bottomY,
+            phase = phase,
+            liquidColor = liquidColor
+        )
+        return
+    }
+
     if (isShattered) {
         ParticleEffects.drawShatteredGlassware(
             drawScope = this,
@@ -300,7 +299,6 @@ private fun DrawScope.drawBeaker(
         return
     }
 
-    // 2. Draw Boiling & Steam Plume Particles
     if (isBoiling || steamIntensity > 0.05f) {
         val liquidTop = bottomY - (beakerHeight * 0.85f * fillFraction.coerceAtLeast(0.1f))
         ParticleEffects.drawBoilingEffects(
@@ -315,7 +313,6 @@ private fun DrawScope.drawBeaker(
         )
     }
 
-    // 3. Draw Gas Emanation (H2, CO2, O2 billowing mist & bubbles)
     if (bubbleIntensity > 0.05f || gasType != null) {
         val liquidTop = bottomY - (beakerHeight * 0.85f * fillFraction.coerceAtLeast(0.1f))
         ParticleEffects.drawGasEmanation(
@@ -330,13 +327,10 @@ private fun DrawScope.drawBeaker(
         )
     }
 
-    // 4. Draw Liquid Fill & Meniscus Waves
     if (fillFraction > 0.005f) {
         val liquidTop = bottomY - (beakerHeight * 0.85f * fillFraction)
         val liquidPath = Path().apply {
             moveTo(leftX + 4f, liquidTop)
-
-            // Harmonic Water Wave Meniscus
             val waveFreq = if (stirrerActive || isBoiling) 4 else 2
             val waveAmp = if (isBoiling) 5f else if (stirrerActive || surfaceRippleIntensity > 0.5f) 3.5f else 1.5f
             for (x in (leftX + 4f).toInt()..(rightX - 4f).toInt() step 4) {
@@ -345,15 +339,12 @@ private fun DrawScope.drawBeaker(
                 val wave2 = (waveAmp * 0.5f) * sin(relX * waveFreq * 2f * PI.toFloat() + phase * 4f)
                 lineTo(x.toFloat(), liquidTop + wave1 + wave2)
             }
-
             lineTo(rightX - 4f, bottomY - cornerRadius)
             quadraticTo(rightX - 4f, bottomY - 4f, rightX - cornerRadius, bottomY - 4f)
             lineTo(leftX + cornerRadius, bottomY - 4f)
             quadraticTo(leftX + 4f, bottomY - 4f, leftX + 4f, bottomY - cornerRadius)
             close()
         }
-
-        // Draw Liquid Base Gradient
         drawPath(liquidPath, brush = Brush.verticalGradient(
             colors = listOf(
                 liquidColor.copy(alpha = (liquidColor.alpha * 0.85f).coerceIn(0.25f, 1f)),
@@ -362,16 +353,9 @@ private fun DrawScope.drawBeaker(
             startY = liquidTop,
             endY = bottomY
         ))
-
-        // Turbidity / Cloudiness
         if (turbidity > 0.1f) {
-            drawPath(
-                liquidPath,
-                color = Color.White.copy(alpha = (turbidity * 0.4f).coerceIn(0f, 0.6f))
-            )
+            drawPath(liquidPath, color = Color.White.copy(alpha = (turbidity * 0.4f).coerceIn(0f, 0.6f)))
         }
-
-        // Precipitate Sediment Layer at Bottom
         if (precipitateHeight > 0.01f) {
             val pptTop = bottomY - (beakerHeight * 0.7f * precipitateHeight)
             val pptPath = Path().apply {
@@ -384,15 +368,12 @@ private fun DrawScope.drawBeaker(
                 close()
             }
             drawPath(pptPath, color = precipitateColor.copy(alpha = 0.88f))
-
             for (i in 0..12) {
                 val gx = leftX + 10f + (i * 19f) % (beakerWidth - 20f)
                 val gy = bottomY - 6f - (i * 7f) % (beakerHeight * 0.6f * precipitateHeight)
                 drawCircle(color = precipitateColor.copy(alpha = 0.95f), radius = 2.5f, center = Offset(gx, gy))
             }
         }
-
-        // Magnetic Stirrer Bar
         if (stirrerActive) {
             val barWidth = beakerWidth * 0.35f
             val barHeight = 8f
@@ -405,7 +386,31 @@ private fun DrawScope.drawBeaker(
         }
     }
 
-    // 5. Glass Outline & Graduations
+    val glassBodyPath = Path().apply {
+        moveTo(leftX, topY)
+        lineTo(leftX, bottomY - cornerRadius)
+        quadraticTo(leftX, bottomY, leftX + cornerRadius, bottomY)
+        lineTo(rightX - cornerRadius, bottomY)
+        quadraticTo(rightX, bottomY, rightX, bottomY - cornerRadius)
+        lineTo(rightX, topY)
+        close()
+    }
+    if (isLightRedGlass) {
+        drawPath(glassBodyPath, color = Color(0x33EF4444))
+    }
+
+    if (isRedHotBottom) {
+        ParticleEffects.drawRedHotBottom(
+            drawScope = this,
+            leftX = leftX,
+            rightX = rightX,
+            bottomY = bottomY,
+            height = beakerHeight,
+            cornerRadius = cornerRadius,
+            phase = phase
+        )
+    }
+
     val glassPath = Path().apply {
         moveTo(leftX - 8f, topY)
         lineTo(leftX, topY + 4f)
@@ -416,10 +421,14 @@ private fun DrawScope.drawBeaker(
         lineTo(rightX, topY)
     }
 
-    val glassColor = if (isCracked) Color(0xFFEF4444) else if (isSelected) Color(0xFF38BDF8) else Color(0x8894A3B8)
+    val glassColor = when {
+        isRedHotBottom -> Color(0xFFDC2626)
+        isLightRedGlass || isCracked -> Color(0xFFEF4444)
+        isSelected -> Color(0xFF38BDF8)
+        else -> Color(0x8894A3B8)
+    }
     drawPath(glassPath, color = glassColor, style = Stroke(width = if (isSelected) 3.5f else 2.5f, cap = StrokeCap.Round))
 
-    // Reflection Highlight
     drawLine(
         color = Color.White.copy(alpha = 0.25f),
         start = Offset(leftX + 8f, topY + 10f),
@@ -427,7 +436,6 @@ private fun DrawScope.drawBeaker(
         strokeWidth = 2f
     )
 
-    // Measurement Graduations
     val steps = 5
     for (i in 1 until steps) {
         val gy = bottomY - (beakerHeight * 0.85f * (i.toFloat() / steps))
@@ -448,19 +456,18 @@ private fun DrawScope.drawBeaker(
         }
     }
 
-    // 6. Draw Thermal Cracks across beaker wall if cracked due to high heat!
-    if (isCracked || thermalStress > 0.4f) {
+    if (isCracked || crackLevel > 0 || thermalStress > 0.4f) {
         ParticleEffects.drawThermalCracks(
             drawScope = this,
             leftX = leftX,
             rightX = rightX,
             topY = topY,
             bottomY = bottomY,
-            phase = phase
+            phase = phase,
+            crackLevel = crackLevel.coerceAtLeast(1)
         )
     }
 
-    // 7. Chemical Formula Label on Beaker Face: e.g. "HCl + NaOH + ..."
     if (formulaString.isNotBlank() && formulaString != "Empty") {
         val labelText = if (formulaString.length > 20) formulaString.take(18) + "..." else formulaString
         val labelLayout = textMeasurer.measure(
@@ -484,7 +491,7 @@ private fun DrawScope.drawBeaker(
             cornerRadius = CornerRadius(6f, 6f)
         )
         drawRoundRect(
-            color = if (isCracked) Color(0xAAEF4444) else if (isSelected) Color(0x8838BDF8) else Color(0x4464748B),
+            color = if (isCracked) Color(0xFFEF4444) else Color(0x6638BDF8),
             topLeft = Offset(labelX, labelY),
             size = Size(labelW, labelH),
             cornerRadius = CornerRadius(6f, 6f),
@@ -506,7 +513,11 @@ private fun DrawScope.drawTestTube(
     blastIntensity: Float,
     gasType: String?,
     isShattered: Boolean,
+    isMelted: Boolean = false,
     isCracked: Boolean,
+    crackLevel: Int = 0,
+    isLightRedGlass: Boolean = false,
+    isRedHotBottom: Boolean = false,
     formulaString: String,
     phase: Float,
     isSelected: Boolean,
@@ -529,6 +540,11 @@ private fun DrawScope.drawTestTube(
             flashColorHex = 0xFFFF5722,
             phase = phase
         )
+    }
+
+    if (isMelted) {
+        ParticleEffects.drawMoltenGlassware(drawScope = this, leftX = leftX, rightX = rightX, bottomY = bottomY, phase = phase, liquidColor = liquidColor)
+        return
     }
 
     if (isShattered) {
@@ -573,6 +589,34 @@ private fun DrawScope.drawTestTube(
         }
     }
 
+    if (isLightRedGlass) {
+        val tubeBodyPath = Path().apply {
+            moveTo(leftX, topY)
+            lineTo(leftX, bottomY - radius)
+            arcTo(
+                rect = Rect(leftX, bottomY - 2 * radius, rightX, bottomY),
+                startAngleDegrees = 180f,
+                sweepAngleDegrees = -180f,
+                forceMoveTo = false
+            )
+            lineTo(rightX, topY)
+            close()
+        }
+        drawPath(tubeBodyPath, color = Color(0x33EF4444))
+    }
+
+    if (isRedHotBottom) {
+        ParticleEffects.drawRedHotBottom(
+            drawScope = this,
+            leftX = leftX,
+            rightX = rightX,
+            bottomY = bottomY,
+            height = bottomY - topY,
+            cornerRadius = radius,
+            phase = phase
+        )
+    }
+
     val tubePath = Path().apply {
         moveTo(leftX - 4f, topY)
         lineTo(leftX, topY)
@@ -587,11 +631,16 @@ private fun DrawScope.drawTestTube(
         lineTo(rightX + 4f, topY)
     }
 
-    val glassColor = if (isCracked) Color(0xFFEF4444) else if (isSelected) Color(0xFF38BDF8) else Color(0x8894A3B8)
+    val glassColor = when {
+        isRedHotBottom -> Color(0xFFDC2626)
+        isLightRedGlass || isCracked -> Color(0xFFEF4444)
+        isSelected -> Color(0xFF38BDF8)
+        else -> Color(0x8894A3B8)
+    }
     drawPath(tubePath, color = glassColor, style = Stroke(width = 3f, cap = StrokeCap.Round))
 
-    if (isCracked) {
-        ParticleEffects.drawThermalCracks(drawScope = this, leftX = leftX, rightX = rightX, topY = topY, bottomY = bottomY, phase = phase)
+    if (isCracked || crackLevel > 0) {
+        ParticleEffects.drawThermalCracks(drawScope = this, leftX = leftX, rightX = rightX, topY = topY, bottomY = bottomY, phase = phase, crackLevel = crackLevel.coerceAtLeast(1))
     }
 }
 
@@ -607,7 +656,11 @@ private fun DrawScope.drawErlenmeyer(
     blastIntensity: Float,
     gasType: String?,
     isShattered: Boolean,
+    isMelted: Boolean = false,
     isCracked: Boolean,
+    crackLevel: Int = 0,
+    isLightRedGlass: Boolean = false,
+    isRedHotBottom: Boolean = false,
     formulaString: String,
     phase: Float,
     isSelected: Boolean,
@@ -634,6 +687,11 @@ private fun DrawScope.drawErlenmeyer(
             flashColorHex = 0xFFFF5722,
             phase = phase
         )
+    }
+
+    if (isMelted) {
+        ParticleEffects.drawMoltenGlassware(drawScope = this, leftX = leftBase, rightX = rightBase, bottomY = bottomY, phase = phase, liquidColor = liquidColor)
+        return
     }
 
     if (isShattered) {
@@ -665,6 +723,33 @@ private fun DrawScope.drawErlenmeyer(
         drawPath(liquidPath, color = liquidColor)
     }
 
+    if (isLightRedGlass) {
+        val flaskBody = Path().apply {
+            moveTo(leftNeck, topY)
+            lineTo(leftNeck, neckBottomY)
+            lineTo(leftBase, bottomY - cornerRadius)
+            quadraticTo(leftBase, bottomY, leftBase + cornerRadius, bottomY)
+            lineTo(rightBase - cornerRadius, bottomY)
+            quadraticTo(rightBase, bottomY, rightBase, bottomY - cornerRadius)
+            lineTo(rightNeck, neckBottomY)
+            lineTo(rightNeck, topY)
+            close()
+        }
+        drawPath(flaskBody, color = Color(0x33EF4444))
+    }
+
+    if (isRedHotBottom) {
+        ParticleEffects.drawRedHotBottom(
+            drawScope = this,
+            leftX = leftBase,
+            rightX = rightBase,
+            bottomY = bottomY,
+            height = bottomY - topY,
+            cornerRadius = cornerRadius,
+            phase = phase
+        )
+    }
+
     val flaskPath = Path().apply {
         moveTo(leftNeck - 4f, topY)
         lineTo(leftNeck, topY + 2f)
@@ -678,11 +763,16 @@ private fun DrawScope.drawErlenmeyer(
         lineTo(rightNeck + 4f, topY)
     }
 
-    val glassColor = if (isCracked) Color(0xFFEF4444) else if (isSelected) Color(0xFF38BDF8) else Color(0x8894A3B8)
+    val glassColor = when {
+        isRedHotBottom -> Color(0xFFDC2626)
+        isLightRedGlass || isCracked -> Color(0xFFEF4444)
+        isSelected -> Color(0xFF38BDF8)
+        else -> Color(0x8894A3B8)
+    }
     drawPath(flaskPath, color = glassColor, style = Stroke(width = 3f, cap = StrokeCap.Round))
 
-    if (isCracked) {
-        ParticleEffects.drawThermalCracks(drawScope = this, leftX = leftBase, rightX = rightBase, topY = neckBottomY, bottomY = bottomY, phase = phase)
+    if (isCracked || crackLevel > 0) {
+        ParticleEffects.drawThermalCracks(drawScope = this, leftX = leftBase, rightX = rightBase, topY = neckBottomY, bottomY = bottomY, phase = phase, crackLevel = crackLevel.coerceAtLeast(1))
     }
 
     if (formulaString.isNotBlank() && formulaString != "Empty") {

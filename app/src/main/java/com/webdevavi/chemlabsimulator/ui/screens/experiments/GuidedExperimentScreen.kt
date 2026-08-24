@@ -131,18 +131,33 @@ fun GuidedExperimentScreen(
         }
     }
 
-    LaunchedEffect(container.visualState.blastIntensity, container.isShattered) {
+    LaunchedEffect(
+        container.visualState.blastIntensity,
+        container.isShattered,
+        container.isMelted,
+        container.isExploded,
+        container.temperatureCelsius
+    ) {
         val hasBlast = container.visualState.blastIntensity > 0.15f
-        val isShattered = container.isShattered
-        if ((hasBlast || isShattered) && !isCountdownActive && !userCancelledCountdown) {
+        val isDestroyedOrOver750 = container.temperatureCelsius > 750.0 ||
+                container.isShattered ||
+                container.isMelted ||
+                container.isExploded ||
+                container.visualState.isShattered ||
+                container.visualState.isMelted ||
+                container.visualState.isExploded
+
+        // If blast occurred or sound is playing, always record event time for 5-second sound cutoff
+        if (hasBlast || isDestroyedOrOver750) {
+            lastBlastEventTimeMs = System.currentTimeMillis()
+        }
+
+        // Only start auto-clear screen timer if the beaker is broken/exploded/temperature > 750°C
+        if (isDestroyedOrOver750 && !isCountdownActive && !userCancelledCountdown) {
             isCountdownActive = true
             countdownTotalDurationMs = 5000L
             countdownRemainingMs = 5000L
-            lastBlastEventTimeMs = System.currentTimeMillis()
-        } else if (hasBlast) {
-            // Blast happened again while waiting: re-trigger 5s sound cutoff
-            lastBlastEventTimeMs = System.currentTimeMillis()
-        } else if (!hasBlast && !isShattered) {
+        } else if (!isDestroyedOrOver750) {
             userCancelledCountdown = false
             isCountdownActive = false
         }

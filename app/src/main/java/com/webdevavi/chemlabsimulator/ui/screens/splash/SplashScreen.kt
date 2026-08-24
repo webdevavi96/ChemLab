@@ -159,7 +159,7 @@ fun SplashScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "118 Elements • Realistic Reactions • Thermodynamics",
+                    text = "118 Elements • 77 Compounds • Realistic Reactions • Thermodynamics",
                     color = TextSecondary.copy(alpha = 0.8f),
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace

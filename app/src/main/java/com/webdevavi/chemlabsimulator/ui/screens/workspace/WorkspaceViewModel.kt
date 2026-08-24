@@ -88,6 +88,12 @@ class WorkspaceViewModel(
         val currentState = _state.value
         val activeContainer = currentState.activeContainer ?: return
 
+        // If the glass or beaker is exploded / melted / destroyed, user is not allowed to add chemicals
+        if (activeContainer.isDestroyed || activeContainer.isShattered || activeContainer.isMelted || activeContainer.isExploded) {
+            _unreactedMessage.value = "⚠️ Cannot add chemicals: The glassware is destroyed / exploded!"
+            return
+        }
+
         val (updatedContainer, newEvents) = SimulationEngine.addChemical(
             container = activeContainer,
             chemicalId = chemicalId,
@@ -145,6 +151,11 @@ class WorkspaceViewModel(
         val source = currentState.activeContainer ?: return
         val targetId = currentState.secondaryContainerId ?: return
         val target = currentState.containers.find { it.id == targetId } ?: return
+
+        if (target.isDestroyed || target.isShattered || target.isMelted || target.isExploded) {
+            _unreactedMessage.value = "⚠️ Cannot pour into a destroyed / exploded container!"
+            return
+        }
 
         val (updatedSource, updatedTarget) = SimulationEngine.pour(source, target, volumeMl)
 

@@ -356,8 +356,6 @@ object ParticleEffects {
     }
 
     /**
-     * Draws realistic thermal stress fracture crack patterns across the glassware walls.
-    /**
      * Draws thermal glass fracture lines across the beaker body.
      * Level 1 (150-300°C): Hairline spider cracks.
      * Level 2 (300-500°C): Increased, dense branching fracture network.
