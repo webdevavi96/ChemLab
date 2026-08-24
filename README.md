@@ -10,6 +10,58 @@ The application provides an interactive workspace where users can combine chemic
 
 ---
 
+## 📱 Application Screenshots
+
+The following screenshots demonstrate the primary workflow of ChemLab Simulator, from application startup through the chemistry database and laboratory simulation.
+
+<table>
+  <tr>
+    <td align="center">
+      <strong>1. Splash Screen</strong><br><br>
+      <img src="https://github.com/user-attachments/assets/a3f846a3-836e-47a2-b702-60ad3f72673f" width="350" alt="ChemLab Simulator Splash Screen">
+    </td>
+    <td align="center">
+      <strong>2. Home Screen</strong><br><br>
+      <img src="https://github.com/user-attachments/assets/aba32f2f-20c7-4774-9c4a-85efe400c9e2" width="350" alt="ChemLab Simulator Home Screen">
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center">
+      <strong>3. Guided Experiment Library</strong><br><br>
+      <img src="https://github.com/user-attachments/assets/c9d84762-6862-4f83-a5e2-880cb6617f61" width="350" alt="ChemLab Simulator Guided Experiment Library">
+    </td>
+    <td align="center">
+      <strong>4. Guided Laboratory Experiment</strong><br><br>
+      <img src="https://github.com/user-attachments/assets/baf2e705-7c51-49c5-a21f-6a5e3dc171a9" width="350" alt="ChemLab Simulator Guided Laboratory Experiment">
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center">
+      <strong>5. Interactive Lab Workspace</strong><br><br>
+      <img src="https://github.com/user-attachments/assets/3ce16419-8c69-4eb4-b74d-ea710345fc39" width="350" alt="ChemLab Simulator Interactive Lab Workspace">
+    </td>
+    <td align="center">
+      <strong>6. Chemical Element Details</strong><br><br>
+      <img src="https://github.com/user-attachments/assets/266a3a2b-c814-4116-a460-328337389737" width="350" alt="ChemLab Simulator Chemical Element Details">
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center">
+      <strong>7. Reaction Calculation Inspector</strong><br><br>
+      <img src="https://github.com/user-attachments/assets/e30700ef-a9b4-49f2-b556-ec54388057c3" width="350" alt="ChemLab Simulator Reaction Calculation Inspector">
+    </td>
+    <td align="center">
+      <strong>8. Experiment Result & Thermal Simulation</strong><br><br>
+      <img src="https://github.com/user-attachments/assets/619a1cd2-a69c-48bb-8e68-e28f9a5659b7" width="350" alt="ChemLab Simulator Experiment Result and Thermal Simulation">
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Core Capabilities
 
 ### 1. Deterministic Chemistry Simulation Engine
